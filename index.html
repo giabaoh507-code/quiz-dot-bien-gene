@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ôn Tập Sinh Học: Đột Biến Gene (TN - ĐS - TLN)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-100 text-slate-800 min-h-screen py-8 px-4 font-sans">
+  <div class="max-w-4xl mx-auto space-y-6">
+
+    <!-- HEADER -->
+    <header class="text-center bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+      <h1 class="text-2xl md:text-3xl font-extrabold text-indigo-700">CHUYÊN ĐỀ: ĐỘT BIẾN GENE</h1>
+      <p class="text-slate-500 text-sm mt-1">Luyện tập câu hỏi: Trắc nghiệm (TN), Đúng / Sai (ĐS) và Điền đáp án ngắn (TLN)</p>
+    </header>
+
+    <!-- THANH ĐIỀU KHIỂN & LỌC -->
+    <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center gap-2">
+        <label class="font-semibold text-sm text-slate-700">Chế độ ôn tập:</label>
+        <select id="filterType" onchange="renderQuiz()" class="border border-slate-300 rounded-lg p-2 bg-slate-50 text-sm font-medium outline-indigo-500">
+          <option value="ALL">Tất cả các dạng câu</option>
+          <option value="TN">Chỉ Trắc nghiệm nhiều lựa chọn (TN)</option>
+          <option value="DS">Chỉ Đúng / Sai (ĐS - Cụm 4 ý)</option>
+          <option value="TLN">Chỉ Tự luận ngắn / Điền số (TLN)</option>
+        </select>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <button onclick="shuffleQuestions()" class="text-xs md:text-sm bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold py-2 px-3 rounded-lg transition border border-indigo-200">
+          🔀 Đảo thứ tự câu
+        </button>
+        <span id="statBadge" class="text-xs bg-slate-100 text-slate-600 px-3 py-2 rounded-lg font-medium">0 câu</span>
+      </div>
+    </div>
+
+    <!-- KHU VỰC CÂU HỎI -->
+    <div id="quizContainer" class="space-y-6"></div>
+
+    <!-- NÚT CHẤM ĐIỂM -->
+    <div class="sticky bottom-4 bg-white/95 backdrop-blur p-4 rounded-2xl shadow-lg border border-slate-200 flex flex-col md:flex-row gap-4 items-center justify-between">
+      <div id="scoreDisplay" class="font-bold text-slate-800 text-base">Hãy hoàn thành các câu hỏi rồi nhấn nộp bài.</div>
+      <div class="flex gap-3 w-full md:w-auto">
+        <button onclick="gradeAll()" class="flex-1 md:flex-initial bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-2.5 px-6 rounded-xl transition shadow">
+          Nộp bài & Chấm điểm
+        </button>
+        <button onclick="renderQuiz()" class="bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold py-2.5 px-4 rounded-xl transition">
+          Làm lại
+        </button>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    // Dữ liệu câu hỏi được trích xuất trực tiếp từ 2 file của bạn
+    const rawQuestionBank = [
+      // DẠNG ĐÚNG SAI (ĐS) - File 30-Cau-trac-nghiem-DUNG-SAI-dot-bien-gene.docx
+      {
+        id: "ds_1",
+        type: "DS",
+        title: "Câu 1. Mỗi nhận định sau là đúng hay sai khi nói về đột biến gene?",
+        subQuestions: [
+          { key: "a", text: "Có thể có lợi, có hại hoặc trung tính.", correct: true },
+          { key: "b", text: "Làm biến đổi cấu trúc của gene liên quan tới một cặp hoặc một số cặp nucleotide.", correct: true },
+          { key: "c", text: "Làm nguyên liệu của quá trình chọn giống và tiến hoá.", correct: true },
+          { key: "d", text: "Có thể làm cho sinh vật ngày càng đa dạng, phong phú.", correct: true }
+        ],
+        explanation: "Cả 4 nhận định đều đúng theo định nghĩa và vai trò của đột biến gene trong SGK."
+      },
+      {
+        id: "ds_2",
+        type: "DS",
+        title: "Câu 2. Mỗi nhận định sau là đúng hay sai khi nói về đặc điểm của đột biến thay thế một cặp nucleotide?",
+        subQuestions: [
+          { key: "a", text: "Là một dạng đột biến điểm.", correct: true },
+          { key: "b", text: "Chỉ liên quan tới một bộ ba.", correct: true },
+          { key: "c", text: "Làm thay đổi trình tự nucleotide của nhiều bộ ba.", correct: false },
+          { key: "d", text: "Dễ xảy ra hơn so với các dạng đột biến gene khác.", correct: true }
+        ],
+        explanation: "Ý (c) sai vì đột biến thay thế một cặp nucleotide chỉ làm thay đổi bộ ba chứa cặp nucleotide đó, không làm dịch khung đọc của nhiều bộ ba như đột biến thêm/mất."
+      },
+      {
+        id: "ds_5",
+        type: "DS",
+        title: "Câu 5. Cho biết codon 5’UCA3’ mã hóa Ser; codon 5’CCA3’ mã hóa Pro. Một đột biến điểm làm cho chuỗi polypeptide do allele đột biến quy định có số lượng amino acid bằng chuỗi ban đầu nhưng có 1 amino acid Pro được thay bằng Ser. Theo lí thuyết, mỗi mệnh đề sau là đúng hay sai?",
+        subQuestions: [
+          { key: "a", text: "Nếu allele ban đầu nhân đôi 1 lần cần môi trường cung cấp 300A thì allele đột biến nhân đôi 1 lần cần môi trường cung cấp 301T.", correct: true },
+          { key: "b", text: "Nếu allele ban đầu dài 255 nm thì allele đột biến cũng dài 255 nm.", correct: true },
+          { key: "c", text: "Nếu allele ban đầu phiên mã 1 lần cần cung cấp 150X thì allele đột biến phiên mã 1 lần sẽ cần môi trường cung cấp 149X.", correct: true },
+          { key: "d", text: "Nếu allele ban đầu có 1300 liên kết hydrogen thì allele đột biến sẽ có 1301 liên kết hydrogen.", correct: false }
+        ],
+        explanation: "Đột biến Pro (5'CCA3') thành Ser (5'UCA3') là đột biến thay thế cặp G-C bằng cặp A-T. Chiều dài gene không đổi. Do G-C (3 liên kết) thành A-T (2 liên kết) nên số liên kết hydrogen giảm 1 (còn 1299 liên kết) => Ý (d) sai."
+      },
+      {
+        id: "ds_10",
+        type: "DS",
+        title: "Câu 10. Khi nói về đột biến gene thì mệnh đề nào đúng, mệnh đề nào sai?",
+        subQuestions: [
+          { key: "a", text: "Trong quần thể, giả sử gene A có 5 allele và có tác nhân 5-BU tác động vào quá trình nhân đôi gene A thì làm phát sinh allele mới.", correct: false },
+          { key: "b", text: "Trong tế bào có 1 allele đột biến, trải qua quá trình phân bào thì allele đột biến luôn di truyền về tế bào con.", correct: true },
+          { key: "c", text: "Đột biến thay thế một cặp nucleotide vẫn có thể làm tăng số amino acid của chuỗi polypeptide.", correct: true },
+          { key: "d", text: "Tác nhân 5-BU tác động gây đột biến gene thì có thể sẽ làm tăng chiều dài của gene.", correct: false }
+        ],
+        explanation: "5-BU chỉ gây đột biến thay thế cặp A-T bằng G-C nên không làm tăng chiều dài của gene (d sai). Đột biến thay thế có thể biến bộ ba kết thúc thành bộ ba mã hóa làm chuỗi polypeptide dài ra (c đúng)."
+      },
+
+      // DẠNG TRẮC NGHIỆM NHIỀU LỰA CHỌN (TN) - File 80-Cau-trac-nghiem-dot-bien-gene.docx
+      {
+        id: "tn_1",
+        type: "TN",
+        title: "Câu 1. Đột biến gene là những biến đổi",
+        options: [
+          "A. vật chất di truyền ở cấp độ phân tử hoặc cấp độ tế bào.",
+          "B. trong cấu trúc của gene, liên quan đến một hoặc một số nucleotide tại một điểm nào đó trên DNA.",
+          "C. trong cấu trúc của gene, liên quan đến một hoặc một số cặp nucleotide tại một điểm nào đó trên DNA.",
+          "D. trong cấu trúc của nhiễm sắc thể, xảy ra trong quá trình phân chia tế bào."
+        ],
+        correctAnswer: 2,
+        explanation: "Đột biến gene là những biến đổi trong cấu trúc của gene, liên quan tới một hoặc một số cặp nucleotide."
+      },
+      {
+        id: "tn_3",
+        type: "TN",
+        title: "Câu 3. Dạng đột biến điểm nào sau đây không làm thay đổi số liên kết hydrogen của gene?",
+        options: [
+          "A. Mất cặp A - T.",
+          "B. Thêm cặp G - C.",
+          "C. Thay cặp A - T bằng cặp G - C.",
+          "D. Thay cặp G - C bằng cặp C – G."
+        ],
+        correctAnswer: 3,
+        explanation: "Thay cặp G-C bằng cặp C-G (hoặc A-T bằng T-A) không làm thay đổi số lượng và bản chất số liên kết hydrogen."
+      },
+      {
+        id: "tn_19",
+        type: "TN",
+        title: "Câu 19. Gene A bị đột biến thành gene a, hai gene này có chiều dài bằng nhau nhưng gene a hơn gene A một liên kết hydrogen, chứng tỏ gene A đã xảy ra đột biến dạng:",
+        options: [
+          "A. thêm 1 cặp G - C.",
+          "B. thay thế cặp A - T bằng cặp G - C.",
+          "C. thay thế cặp G - C bằng cặp A - T.",
+          "D. mất 1 cặp A - T."
+        ],
+        correctAnswer: 1,
+        explanation: "Chiều dài bằng nhau => Đột biến thay thế 1 cặp nucleotide. Số liên kết hydrogen tăng 1 => Thay thế cặp A-T (2 liên kết) bằng cặp G-C (3 liên kết)."
+      },
+      {
+        id: "tn_24",
+        type: "TN",
+        title: "Câu 24. Trong vùng mã hóa của phân tử mRNA, đột biến làm xuất hiện codon nào sau đây sẽ kết thúc sớm quá trình dịch mã?",
+        options: [
+          "A. 5'UAG3'.",
+          "B. 5'UUA3'.",
+          "C. 5'UGG3'.",
+          "D. 3'UAA5'."
+        ],
+        correctAnswer: 0,
+        explanation: "Các codon kết thúc chuẩn đọc theo chiều 5' -> 3' gồm: 5'UAA3', 5'UAG3', 5'UGA3'."
+      },
+
+      // DẠNG TỰ LUẬN NGẮN / BÀI TẬP ĐIỀN ĐÁP ÁN (TLN) - Chuyển thể từ các bài toán trong file
+      {
+        id: "tln_68",
+        type: "TLN",
+        title: "Câu 68 (TLN). Gene B có 390 G và có tổng số liên kết hydrogen là 1670, bị đột biến thay thế một cặp nucleotide thành gene b. Gene b nhiều hơn gene B một liên kết hydrogen. Hãy tính số nucleotide loại A của gene b?",
+        correctAnswers: ["249", "249 nu"],
+        explanation: "Gene B: 2A + 3G = 1670 => 2A + 3(390) = 1670 => A = 250. Đột biến làm tăng 1 liên kết hydrogen là đột biến thay thế 1 cặp A-T bằng 1 cặp G-C => Gene b có A = 250 - 1 = 249."
+      },
+      {
+        id: "tln_71",
+        type: "TLN",
+        title: "Câu 71 (TLN). Một gene dài 0,51 μm, trên mạch gốc có A = 300, T = 400. Nếu gene xảy ra đột biến điểm thay thế cặp A-T bằng cặp G-C thì số liên kết hydrogen của gene đột biến là bao nhiêu?",
+        correctAnswers: ["3801", "3801 liên kết"],
+        explanation: "Tổng số nucleotide: N = (5100 / 3.4) * 2 = 3000 nu. A của gene = A1 + T1 = 300 + 400 = 700 => G = 1500 - 700 = 800. Số liên kết ban đầu: 2(700) + 3(800) = 3800. Đột biến thay A-T bằng G-C làm tăng 1 liên kết => 3801."
+      },
+      {
+        id: "tln_74",
+        type: "TLN",
+        title: "Câu 74 (TLN). Gene B có 900 nucleotide loại A và có tỉ lệ A/G = 1,5. Gene B bị đột biến thay thế một cặp G-C bằng một cặp A-T trở thành allele b. Tổng số liên kết hydrogen của allele b là bao nhiêu?",
+        correctAnswers: ["3599", "3599 liên kết"],
+        explanation: "G = 900 / 1.5 = 600. Số liên kết hydrogen ban đầu: 2(900) + 3(600) = 3600. Đột biến thay G-C bằng A-T làm giảm 1 liên kết => Còn 3599."
+      }
+    ];
+
+    let currentQuestions = [...rawQuestionBank];
+
+    // Hiển thị danh sách câu hỏi
+    function renderQuiz() {
+      const filter = document.getElementById('filterType').value;
+      const container = document.getElementById('quizContainer');
+      document.getElementById('scoreDisplay').innerText = "Hãy hoàn thành các câu hỏi rồi nhấn nộp bài.";
+      document.getElementById('scoreDisplay').className = "font-bold text-slate-800 text-base";
+      container.innerHTML = '';
+
+      const list = filter === 'ALL' ? currentQuestions : currentQuestions.filter(q => q.type === filter);
+      document.getElementById('statBadge').innerText = `${list.length} câu hỏi`;
+
+      if (list.length === 0) {
+        container.innerHTML = '<div class="p-8 text-center text-slate-400 bg-white rounded-xl">Không có câu hỏi nào.</div>';
+        return;
+      }
+
+      list.forEach((q, idx) => {
+        let contentHtml = '';
+
+        // 1. DẠNG TRẮC NGHIỆM (TN)
+        if (q.type === 'TN') {
+          contentHtml = `
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-2.5 mt-3">
+              ${q.options.map((opt, i) => `
+                <label class="flex items-center gap-2.5 p-3 rounded-xl border border-slate-200 bg-slate-50 hover:bg-indigo-50/50 cursor-pointer text-sm transition">
+                  <input type="radio" name="ans_${q.id}" value="${i}" class="text-indigo-600 focus:ring-indigo-500">
+                  <span>${opt}</span>
+                </label>
+              `).join('')}
+            </div>
+          `;
+        } 
+        // 2. DẠNG ĐÚNG SAI (ĐS)
+        else if (q.type === 'DS') {
+          contentHtml = `
+            <div class="mt-3 overflow-hidden rounded-xl border border-slate-200">
+              <table class="w-full text-left text-sm">
+                <thead class="bg-slate-100 text-slate-600 font-semibold border-b">
+                  <tr>
+                    <th class="p-3">Ý kiến / Nhận định</th>
+                    <th class="p-3 w-20 text-center">Đúng</th>
+                    <th class="p-3 w-20 text-center">Sai</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-200 bg-white">
+                  ${q.subQuestions.map(sub => `
+                    <tr class="hover:bg-slate-50">
+                      <td class="p-3 font-medium text-slate-700"><strong>${sub.key})</strong>${sub.text}</td>
+                      <td class="p-3 text-center">
+                        <input type="radio" name="ans_${q.id}_${sub.key}" value="true" class="w-4 h-4 text-emerald-600">
+                      </td>
+                      <td class="p-3 text-center">
+                        <input type="radio" name="ans_${q.id}_${sub.key}" value="false" class="w-4 h-4 text-rose-600">
+                      </td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          `;
+        } 
+        // 3. DẠNG TỰ LUẬN NGẮN (TLN)
+        else if (q.type === 'TLN') {
+          contentHtml = `
+            <div class="mt-3 flex items-center gap-3">
+              <input type="text" id="ans_${q.id}" placeholder="Điền đáp số hoặc kết quả..." class="w-full md:w-80 p-2.5 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:bg-white outline-indigo-500">
+            </div>
+          `;
+        }
+
+        const typeLabel = q.type === 'TN' ? 'Trắc nghiệm' : (q.type === 'DS' ? 'Đúng / Sai' : 'Tự luận ngắn');
+        const badgeColor = q.type === 'TN' ? 'bg-blue-100 text-blue-700' : (q.type === 'DS' ? 'bg-purple-100 text-purple-700' : 'bg-amber-100 text-amber-700');
+
+        container.innerHTML += `
+          <div class="bg-white p-5 md:p-6 rounded-2xl shadow-sm border border-slate-200" id="card_${q.id}">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="text-xs px-2.5 py-1 rounded-full font-bold ${badgeColor}">${typeLabel}</span>
+              <span class="text-xs text-slate-400 font-semibold">Mã: #${q.id}</span>
+            </div>
+            <p class="font-semibold text-slate-800 text-sm md:text-base leading-relaxed">${q.title}</p>
+            ${contentHtml}
+            <div id="feedback_${q.id}" class="mt-3 p-3 rounded-xl text-xs md:text-sm hidden leading-relaxed"></div>
+          </div>
+        `;
+      });
+    }
+
+    // Đảo ngẫu nhiên
+    function shuffleQuestions() {
+      currentQuestions.sort(() => Math.random() - 0.5);
+      renderQuiz();
+    }
+
+    // Chấm điểm toàn bài
+    function gradeAll() {
+      const filter = document.getElementById('filterType').value;
+      const list = filter === 'ALL' ? currentQuestions : currentQuestions.filter(q => q.type === filter);
+      let earnedPoints = 0;
+      let maxPoints = 0;
+
+      list.forEach(q => {
+        const feedback = document.getElementById(`feedback_${q.id}`);
+        feedback.classList.remove('hidden', 'bg-emerald-50', 'text-emerald-800', 'bg-rose-50', 'text-rose-800', 'bg-amber-50', 'text-amber-800');
+
+        // Chấm Trắc Nghiệm (TN) - 1 điểm / câu
+        if (q.type === 'TN') {
+          maxPoints += 1;
+          const checked = document.querySelector(`input[name="ans_${q.id}"]:checked`);
+          const userVal = checked ? parseInt(checked.value) : -1;
+          const isCorrect = userVal === q.correctAnswer;
+          if (isCorrect) earnedPoints += 1;
+
+          feedback.innerHTML = `
+            <div class="font-bold mb-1">${isCorrect ? '✅ Bạn chọn đúng!' : '❌ Bạn chọn chưa chính xác.'}</div>
+            <div>Đáp án đúng: <strong>${q.options[q.correctAnswer]}</strong></div>
+            <div class="text-slate-500 mt-1 italic font-normal">Giải thích: ${q.explanation}</div>
+          `;
+          feedback.classList.add(isCorrect ? 'bg-emerald-50' : 'bg-rose-50', isCorrect ? 'text-emerald-800' : 'text-rose-800');
+        }
+
+        // Chấm Đúng / Sai (ĐS) - Mỗi ý đúng được 0.25đ (Tổng 1đ)
+        else if (q.type === 'DS') {
+          maxPoints += 1;
+          let correctSubCount = 0;
+          let detailResult = [];
+
+          q.subQuestions.forEach(sub => {
+            const checked = document.querySelector(`input[name="ans_${q.id}_${sub.key}"]:checked`);
+            const userChoice = checked ? checked.value === 'true' : null;
+            const ok = userChoice === sub.correct;
+            if (ok) correctSubCount++;
+            detailResult.push(`${sub.key}) Đáp án là <strong>${sub.correct ? 'Đúng' : 'Sai'}</strong>`);
+          });
+
+          const subScore = (correctSubCount * 0.25);
+          earnedPoints += subScore;
+
+          feedback.innerHTML = `
+            <div class="font-bold mb-1">Kết quả: Đúng ${correctSubCount}/4 ý (+${subScore.toFixed(2)} điểm)</div>
+            <div class="text-xs text-slate-600 mb-1">${detailResult.join(' | ')}</div>
+            <div class="text-slate-500 italic font-normal">Giải thích: ${q.explanation}</div>
+          `;
+          feedback.classList.add(correctSubCount === 4 ? 'bg-emerald-50' : (correctSubCount > 0 ? 'bg-amber-50' : 'bg-rose-50'));
+          feedback.classList.add(correctSubCount === 4 ? 'text-emerald-800' : (correctSubCount > 0 ? 'text-amber-800' : 'text-rose-800'));
+        }
+
+        // Chấm Tự Luận Ngắn (TLN) - 1 điểm / câu
+        else if (q.type === 'TLN') {
+          maxPoints += 1;
+          const userVal = (document.getElementById(`ans_${q.id}`).value || '').trim().toLowerCase();
+          const isCorrect = q.correctAnswers.some(ans => ans.toLowerCase() === userVal);
+          if (isCorrect) earnedPoints += 1;
+
+          feedback.innerHTML = `
+            <div class="font-bold mb-1">${isCorrect ? '✅ Bạn làm chính xác!' : '❌ Chưa chính xác.'}</div>
+            <div>Đáp án chấp nhận: <strong>${q.correctAnswers.join(' hoặc ')}</strong></div>
+            <div class="text-slate-500 mt-1 italic font-normal">Giải thích chi tiết: ${q.explanation}</div>
+          `;
+          feedback.classList.add(isCorrect ? 'bg-emerald-50' : 'bg-rose-50', isCorrect ? 'text-emerald-800' : 'text-rose-800');
+        }
+      });
+
+      const scoreEl = document.getElementById('scoreDisplay');
+      scoreEl.innerHTML = `Điểm của bạn: <span class="text-indigo-600 text-xl font-extrabold">${earnedPoints.toFixed(2)}</span> / ${maxPoints.toFixed(1)} điểm`;
+    }
+
+    // Khởi chạy khi load trang
+    renderQuiz();
+  </script>
+</body>
+</html>
