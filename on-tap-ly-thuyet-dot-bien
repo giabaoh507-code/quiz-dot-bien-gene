@@ -702,3 +702,406 @@
   </script>
 </body>
 </html>
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hệ Thống Tự Tạo Câu Hỏi & Ôn Tập</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen py-8 px-4">
+  <div class="max-w-4xl mx-auto space-y-6">
+
+    <!-- TIÊU ĐỀ -->
+    <header class="text-center space-y-2">
+      <h1 class="text-3xl font-extrabold text-indigo-700">Trình Quản Lý & Ôn Tập Câu Hỏi</h1>
+      <p class="text-slate-500 text-sm">Hỗ trợ Trắc Nghiệm (TN), Đúng / Sai (ĐS) và Tự Luận Ngắn (TLN)</p>
+    </header>
+
+    <!-- THANH ĐIỀU HƯỚNG TAB -->
+    <div class="flex border-b border-slate-200 gap-4 justify-center">
+      <button onclick="switchTab('create')" id="tabBtnCreate" class="pb-3 px-4 font-semibold text-indigo-600 border-b-2 border-indigo-600 transition">
+        ➕ Soạn câu hỏi
+      </button>
+      <button onclick="switchTab('quiz')" id="tabBtnQuiz" class="pb-3 px-4 font-semibold text-slate-500 hover:text-indigo-600 border-b-2 border-transparent transition">
+        📝 Luyện tập (<span id="totalQuestionsBadge">0</span>)
+      </button>
+      <button onclick="switchTab('backup')" id="tabBtnBackup" class="pb-3 px-4 font-semibold text-slate-500 hover:text-indigo-600 border-b-2 border-transparent transition">
+        💾 Sao lưu / Nhập file
+      </button>
+    </div>
+
+    <!-- TAB 1: FORM SOẠN CÂU HỎI -->
+    <section id="tabCreate" class="bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-4">
+      <h2 class="text-lg font-bold text-slate-700 border-l-4 border-indigo-600 pl-3">Tạo câu hỏi mới</h2>
+      
+      <div>
+        <label class="block text-sm font-medium text-slate-600 mb-1">Loại câu hỏi:</label>
+        <select id="inputType" class="w-full border rounded-lg p-2.5 bg-slate-50 focus:bg-white outline-indigo-500 text-sm" onchange="renderDynamicForm()">
+          <option value="TN">Trắc nghiệm (4 lựa chọn)</option>
+          <option value="DS">Đúng / Sai</option>
+          <option value="TLN">Tự luận ngắn (Điền từ/số ngắn)</option>
+        </select>
+      </div>
+
+      <div>
+        <label class="block text-sm font-medium text-slate-600 mb-1">Nội dung câu hỏi:</label>
+        <textarea id="inputText" rows="3" class="w-full border rounded-lg p-2.5 bg-slate-50 focus:bg-white outline-indigo-500 text-sm" placeholder="Nhập đề bài vào đây..."></textarea>
+      </div>
+
+      <!-- Khung nhập đáp án linh động theo loại câu hỏi -->
+      <div id="dynamicFormContainer" class="p-4 bg-slate-50 rounded-xl border border-slate-200 space-y-3"></div>
+
+      <button onclick="saveQuestion()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-lg shadow-sm transition">
+        Lưu vào kho câu hỏi
+      </button>
+    </section>
+
+    <!-- TAB 2: GIAO DIỆN LÀM BÀI ÔN TẬP -->
+    <section id="tabQuiz" class="hidden space-y-6">
+      <!-- Bộ lọc chế độ ôn tập -->
+      <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4 text-sm">
+        <div class="flex items-center gap-2">
+          <span class="font-medium text-slate-600">Lọc dạng bài:</span>
+          <select id="filterType" onchange="filterQuiz()" class="border rounded-lg p-1.5 bg-slate-50 outline-none">
+            <option value="ALL">Tất cả các dạng</option>
+            <option value="TN">Chỉ Trắc nghiệm (TN)</option>
+            <option value="DS">Chỉ Đúng / Sai (ĐS)</option>
+            <option value="TLN">Chỉ Tự luận ngắn (TLN)</option>
+          </select>
+        </div>
+        <button onclick="shuffleQuiz()" class="text-indigo-600 font-semibold hover:underline">🔀 Đảo ngẫu nhiên câu hỏi</button>
+      </div>
+
+      <!-- Danh sách câu hỏi render ra màn hình -->
+      <div id="quizContainer" class="space-y-4"></div>
+
+      <!-- Nút nộp bài -->
+      <div class="flex gap-4">
+        <button onclick="submitQuiz()" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl shadow-sm transition">
+          Nộp bài & Chấm điểm
+        </button>
+        <button onclick="resetInputs()" class="px-5 py-3 border border-slate-300 hover:bg-slate-100 font-medium rounded-xl text-slate-600 transition">
+          Làm lại
+        </button>
+      </div>
+
+      <!-- Bảng kết quả -->
+      <div id="resultCard" class="hidden p-5 rounded-xl border text-center font-bold text-lg"></div>
+    </section>
+
+    <!-- TAB 3: QUẢN LÝ DỮ LIỆU & IMPORT/EXPORT -->
+    <section id="tabBackup" class="hidden bg-white p-6 rounded-2xl shadow-sm border border-slate-200 space-y-6">
+      <div>
+        <h3 class="font-bold text-slate-700 mb-2">Tải về dữ liệu dự phòng (Export)</h3>
+        <p class="text-xs text-slate-500 mb-3">Tải file `.json` về máy để lưu trữ hoặc chuyển sang máy tính/điện thoại khác.</p>
+        <button onclick="exportData()" class="bg-slate-700 hover:bg-slate-800 text-white text-sm font-medium py-2 px-4 rounded-lg">
+          Xuất dữ liệu ra file (.json)
+        </button>
+      </div>
+
+      <hr class="border-slate-200">
+
+      <div>
+        <h3 class="font-bold text-slate-700 mb-2">Nhập dữ liệu từ file (Import)</h3>
+        <p class="text-xs text-slate-500 mb-3">Chọn file `.json` đã lưu từ trước để nạp lại câu hỏi.</p>
+        <input type="file" id="fileInput" accept=".json" class="text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100">
+      </div>
+
+      <hr class="border-slate-200">
+
+      <div>
+        <h3 class="font-bold text-rose-600 mb-2">Xóa toàn bộ kho câu hỏi</h3>
+        <button onclick="clearAllData()" class="border border-rose-300 text-rose-600 hover:bg-rose-50 text-sm font-medium py-2 px-4 rounded-lg">
+          Xóa toàn bộ dữ liệu
+        </button>
+      </div>
+    </section>
+
+  </div>
+
+  <script>
+    // Khởi tạo danh sách mặc định có sẵn vài câu mẫu
+    const initialSamples = [
+      { id: 1, type: "TN", question: "Đâu là ngôn ngữ đánh dấu siêu văn bản để tạo khung website?", options: ["Python", "HTML", "C++", "Java"], correctAnswer: 1 },
+      { id: 2, type: "DS", question: "JavaScript chỉ có thể chạy trên máy chủ (Server), không chạy được trên trình duyệt.", correctAnswer: false },
+      { id: 3, type: "TLN", question: "Số nguyên tố chẵn nhỏ nhất là số mấy?", correctAnswer: ["2", "hai"] }
+    ];
+
+    let questionList = JSON.parse(localStorage.getItem('quiz_storage_data')) || initialSamples;
+    let currentQuizList = [];
+
+    // Chuyển tab
+    function switchTab(tab) {
+      ['tabCreate', 'tabQuiz', 'tabBackup'].forEach(t => document.getElementById(t).classList.add('hidden'));
+      ['tabBtnCreate', 'tabBtnQuiz', 'tabBtnBackup'].forEach(b => {
+        document.getElementById(b).classList.remove('text-indigo-600', 'border-indigo-600');
+        document.getElementById(b).classList.add('text-slate-500', 'border-transparent');
+      });
+
+      if (tab === 'create') {
+        document.getElementById('tabCreate').classList.remove('hidden');
+        document.getElementById('tabBtnCreate').classList.add('text-indigo-600', 'border-indigo-600');
+      } else if (tab === 'quiz') {
+        document.getElementById('tabQuiz').classList.remove('hidden');
+        document.getElementById('tabBtnQuiz').classList.add('text-indigo-600', 'border-indigo-600');
+        filterQuiz();
+      } else {
+        document.getElementById('tabBackup').classList.remove('hidden');
+        document.getElementById('tabBtnBackup').classList.add('text-indigo-600', 'border-indigo-600');
+      }
+    }
+
+    // Hiển thị khung nhập đáp án theo loại câu hỏi
+    function renderDynamicForm() {
+      const type = document.getElementById('inputType').value;
+      const box = document.getElementById('dynamicFormContainer');
+      box.innerHTML = '';
+
+      if (type === 'TN') {
+        box.innerHTML = `
+          <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Nhập 4 phương án & tick chọn đáp án đúng:</label>
+          ${[0, 1, 2, 3].map(i => `
+            <div class="flex items-center gap-2">
+              <input type="radio" name="correctTN" value="${i}" ${i === 0 ? 'checked' : ''} class="w-4 h-4 text-indigo-600">
+              <input type="text" id="tn_opt_${i}" placeholder="Lựa chọn ${i + 1}" class="flex-1 border rounded-lg p-2 text-sm bg-white">
+            </div>
+          `).join('')}
+        `;
+      } else if (type === 'DS') {
+        box.innerHTML = `
+          <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Chọn kết luận đúng cho mệnh đề:</label>
+          <div class="flex gap-6">
+            <label class="flex items-center gap-2 text-sm font-semibold cursor-pointer">
+              <input type="radio" name="correctDS" value="true" checked class="w-4 h-4 text-indigo-600"> Đúng
+            </label>
+            <label class="flex items-center gap-2 text-sm font-semibold cursor-pointer">
+              <input type="radio" name="correctDS" value="false" class="w-4 h-4 text-indigo-600"> Sai
+            </label>
+          </div>
+        `;
+      } else if (type === 'TLN') {
+        box.innerHTML = `
+          <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Các đáp án được chấp nhận (ngăn cách bằng dấu phẩy):</label>
+          <input type="text" id="tln_ans" placeholder="Ví dụ: 2, hai, số 2" class="w-full border rounded-lg p-2 text-sm bg-white">
+          <p class="text-[11px] text-slate-400 mt-1">* Hệ thống sẽ tự động chuyển chữ hoa thành thường khi so khớp kết quả.</p>
+        `;
+      }
+    }
+
+    // Thêm câu hỏi vào kho
+    function saveQuestion() {
+      const type = document.getElementById('inputType').value;
+      const text = document.getElementById('inputText').value.trim();
+
+      if (!text) return alert("Vui lòng nhập nội dung đề bài!");
+
+      let newQuestion = { id: Date.now(), type, question: text };
+
+      if (type === 'TN') {
+        const options = [0, 1, 2, 3].map(i => document.getElementById(`tn_opt_${i}`).value.trim());
+        if (options.some(opt => !opt)) return alert("Vui lòng nhập đầy đủ cả 4 phương án!");
+        newQuestion.options = options;
+        newQuestion.correctAnswer = parseInt(document.querySelector('input[name="correctTN"]:checked').value);
+      } else if (type === 'DS') {
+        newQuestion.correctAnswer = document.querySelector('input[name="correctDS"]:checked').value === 'true';
+      } else if (type === 'TLN') {
+        const rawAns = document.getElementById('tln_ans').value.trim();
+        if (!rawAns) return alert("Vui lòng nhập ít nhất một đáp án đúng!");
+        newQuestion.correctAnswer = rawAns.split(',').map(item => item.trim().toLowerCase());
+      }
+
+      questionList.push(newQuestion);
+      saveToStorage();
+      alert("Đã lưu câu hỏi thành công!");
+      document.getElementById('inputText').value = '';
+      renderDynamicForm();
+      updateBadge();
+    }
+
+    // Lọc và hiển thị danh sách làm bài
+    function filterQuiz() {
+      const filter = document.getElementById('filterType').value;
+      currentQuizList = filter === 'ALL' ? [...questionList] : questionList.filter(q => q.type === filter);
+      renderQuizArea();
+    }
+
+    // Xáo trộn thứ tự
+    function shuffleQuiz() {
+      currentQuizList.sort(() => Math.random() - 0.5);
+      renderQuizArea();
+    }
+
+    // Render danh sách câu hỏi ra giao diện làm bài
+    function renderQuizArea() {
+      const container = document.getElementById('quizContainer');
+      document.getElementById('resultCard').classList.add('hidden');
+      container.innerHTML = '';
+
+      if (currentQuizList.length === 0) {
+        container.innerHTML = `<div class="p-8 text-center text-slate-400 bg-white rounded-xl border border-dashed border-slate-300">Không có câu hỏi nào thuộc danh mục này.</div>`;
+        return;
+      }
+
+      currentQuizList.forEach((q, idx) => {
+        let formControlHtml = '';
+
+        if (q.type === 'TN') {
+          formControlHtml = `<div class="grid grid-cols-1 md:grid-cols-2 gap-2 mt-3">
+            ${q.options.map((opt, i) => `
+              <label class="flex items-center gap-2 p-2.5 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer text-sm">
+                <input type="radio" name="ans_${q.id}" value="${i}" class="text-indigo-600">
+                <span>${opt}</span>
+              </label>
+            `).join('')}
+          </div>`;
+        } else if (q.type === 'DS') {
+          formControlHtml = `<div class="flex gap-4 mt-3">
+            <label class="flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-200 cursor-pointer text-sm hover:bg-slate-50">
+              <input type="radio" name="ans_${q.id}" value="true" class="text-indigo-600"> Đúng
+            </label>
+            <label class="flex items-center gap-2 px-4 py-2 rounded-lg border border-slate-200 cursor-pointer text-sm hover:bg-slate-50">
+              <input type="radio" name="ans_${q.id}" value="false" class="text-indigo-600"> Sai
+            </label>
+          </div>`;
+        } else if (q.type === 'TLN') {
+          formControlHtml = `<div class="mt-3">
+            <input type="text" id="ans_${q.id}" placeholder="Điền câu trả lời ngắn của bạn..." class="w-full border rounded-lg p-2.5 text-sm bg-slate-50 focus:bg-white outline-indigo-500">
+          </div>`;
+        }
+
+        const typeBadge = q.type === 'TN' ? 'Trắc nghiệm' : (q.type === 'DS' ? 'Đúng/Sai' : 'Tự luận ngắn');
+
+        container.innerHTML += `
+          <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-2" id="block_${q.id}">
+            <div class="flex justify-between items-start">
+              <span class="text-xs font-semibold px-2 py-0.5 rounded bg-indigo-50 text-indigo-600">${typeBadge}</span>
+              <button onclick="removeQuestion(${q.id})" class="text-xs text-rose-500 hover:underline">Xóa câu này</button>
+            </div>
+            <p class="font-medium text-slate-800 text-sm md:text-base"><strong>Câu ${idx + 1}:</strong> ${q.question}</p>
+            ${formControlHtml}
+            <div id="feedback_${q.id}" class="text-xs font-semibold mt-2 hidden p-2 rounded"></div>
+          </div>
+        `;
+      });
+    }
+
+    // Chấm điểm
+    function submitQuiz() {
+      let score = 0;
+
+      currentQuizList.forEach(q => {
+        const feedback = document.getElementById(`feedback_${q.id}`);
+        feedback.className = "text-xs font-semibold mt-2 p-2 rounded block";
+        let isCorrect = false;
+
+        if (q.type === 'TN') {
+          const selected = document.querySelector(`input[name="ans_${q.id}"]:checked`);
+          if (selected && parseInt(selected.value) === q.correctAnswer) isCorrect = true;
+          feedback.innerHTML = isCorrect ? '✅ Chính xác' : `❌ Sai (Đáp án đúng: <strong>${q.options[q.correctAnswer]}</strong>)`;
+        } else if (q.type === 'DS') {
+          const selected = document.querySelector(`input[name="ans_${q.id}"]:checked`);
+          if (selected && (selected.value === 'true') === q.correctAnswer) isCorrect = true;
+          feedback.innerHTML = isCorrect ? '✅ Chính xác' : `❌ Sai (Mệnh đề này là <strong>${q.correctAnswer ? 'Đúng' : 'Sai'}</strong>)`;
+        } else if (q.type === 'TLN') {
+          const val = (document.getElementById(`ans_${q.id}`).value || '').trim().toLowerCase();
+          if (q.correctAnswer.includes(val)) isCorrect = true;
+          feedback.innerHTML = isCorrect ? '✅ Chính xác' : `❌ Sai (Đáp án được công nhận: <strong>${q.correctAnswer.join(', ')}</strong>)`;
+        }
+
+        if (isCorrect) {
+          score++;
+          feedback.classList.add('bg-emerald-50', 'text-emerald-700');
+        } else {
+          feedback.classList.add('bg-rose-50', 'text-rose-700');
+        }
+      });
+
+      const card = document.getElementById('resultCard');
+      card.classList.remove('hidden', 'bg-emerald-50', 'border-emerald-200', 'text-emerald-800', 'bg-amber-50', 'border-amber-200', 'text-amber-800');
+      
+      const isPerfect = score === currentQuizList.length && currentQuizList.length > 0;
+      card.classList.add(isPerfect ? 'bg-emerald-50' : 'bg-amber-50');
+      card.classList.add(isPerfect ? 'border-emerald-200' : 'border-amber-200');
+      card.classList.add(isPerfect ? 'text-emerald-800' : 'text-amber-800');
+      card.innerHTML = `Kết quả ôn tập: ${score} / ${currentQuizList.length} câu đúng`;
+      card.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    // Làm mới input
+    function resetInputs() {
+      filterQuiz();
+    }
+
+    // Xóa từng câu
+    function removeQuestion(id) {
+      if (confirm("Bạn có chắc muốn xóa câu hỏi này khỏi danh sách?")) {
+        questionList = questionList.filter(q => q.id !== id);
+        saveToStorage();
+        filterQuiz();
+        updateBadge();
+      }
+    }
+
+    // Lưu vào LocalStorage
+    function saveToStorage() {
+      localStorage.setItem('quiz_storage_data', JSON.stringify(questionList));
+      updateBadge();
+    }
+
+    function updateBadge() {
+      document.getElementById('totalQuestionsBadge').innerText = questionList.length;
+    }
+
+    // Export dữ liệu sang JSON
+    function exportData() {
+      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(questionList, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("download", `cau_hoi_on_tap_${Date.now()}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+    }
+
+    // Import dữ liệu từ JSON
+    document.getElementById('fileInput').addEventListener('change', function(e) {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        try {
+          const imported = JSON.parse(event.target.result);
+          if (Array.isArray(imported)) {
+            questionList = imported;
+            saveToStorage();
+            alert(`Nhập thành công ${imported.length} câu hỏi!`);
+            switchTab('quiz');
+          } else {
+            alert("File không đúng cấu trúc danh sách câu hỏi hợp lệ!");
+          }
+        } catch (err) {
+          alert("Lỗi khi đọc file JSON!");
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    // Xóa tất cả
+    function clearAllData() {
+      if (confirm("Hành động này sẽ xóa sạch tất cả câu hỏi đã lưu. Tiếp tục?")) {
+        questionList = [];
+        saveToStorage();
+        filterQuiz();
+        alert("Đã xóa toàn bộ câu hỏi.");
+      }
+    }
+
+    // Khởi tạo ban đầu
+    renderDynamicForm();
+    updateBadge();
+  </script>
+</body>
+</html>
